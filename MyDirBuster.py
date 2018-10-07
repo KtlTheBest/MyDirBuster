@@ -7,9 +7,9 @@ Created on Sat Oct  6 17:48:03 2018
 
 import sys
 try:
-    import requests, getopt
+    import requests, getopt, re
 except ImportError:
-    print("This script requires 'requests' and 'getopt' module! Please install it with pip!")
+    print("This script requires 'requests', 're' and 'getopt' module! Please install it with pip!")
     raise Exception('exit')
 
 def addWordlist(filename):
@@ -21,18 +21,23 @@ def addWordlist(filename):
 
 
 def checkUrl(url):
+    # Need to check if the url has the 'https://example.com' format
+    # Need to resolve the syntax errors    
+    url_template = re.pattern(r'http(s)?://.+\.[2-3]')
+    check = url_template.search(url)    
     site = requests.get(url, allow_redirects=True)
     return site.url
 
 def main(args):
-        
+    
     try:
         opt, vals = getopt.getopt(args, "hu:w:", ["help", "url=", "wordlist="])
     except getopt.GetoptError:
         print("use -h for help")
         return
     
-    words = None    
+    words = None
+    wordlistOK = False
     
     for o, val in opt:
         if o in ("-h", "--help"):
@@ -43,11 +48,15 @@ def main(args):
             url = checkUrl(url)
         if o in ("-w", "--wordlist"):
             words = addWordlist(val)
+            wordlistOK = True
     
     result = open("result.txt", "w")
     
     if words == None:
-        print("Error opening the file! Check if the dictionary exists!")
+        if wordlistOK == True:
+            print("Error opening the file! Check if the filename specified!")
+        else:
+            print(sys.argv[0] + " -u <url> -w <wordlist>")
         raise Exception('exit')
     
     site = requests.get(url)
