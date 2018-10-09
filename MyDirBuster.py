@@ -23,9 +23,17 @@ def addWordlist(filename):
 def checkUrl(url):
     # Need to check if the url has the 'https://example.com' format
     # Need to resolve the syntax errors    
-    url_template = re.pattern(r'http(s)?://.+\.[2-3]')
-    check = url_template.search(url)    
-    site = requests.get(url, allow_redirects=True)
+    url_template = re.compile(r'http(s)?://.+\.[2-3]')
+    check = url_template.match(url)
+    if not check:
+        url = "http://" + url;
+    
+    try:
+        site = requests.get(url, allow_redirects=True)
+    except:
+        print("There's probably a typo in a url...")
+        raise Exception('exit')
+        
     return site.url
 
 def main(args):
