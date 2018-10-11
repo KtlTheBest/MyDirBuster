@@ -23,8 +23,6 @@ def addWordlist(filename):
 
 
 def checkUrl(url):
-    # Need to check if the url has the 'https://example.com' format
-    # Need to resolve the syntax errors
     url_template = re.compile(r'http(s)?://.+\.\w{2,4}')
     check = url_template.match(url)
     if not check:
@@ -70,7 +68,6 @@ def main(args):
             print("Error opening the file! Check if the filename specified!")
             finish()
     else:
-        # Need to iterate over files in wordlists directory
         wordlistDir = '.' + os.sep + 'wordlists'
         for subdir, dirs, files in os.walk(wordlistDir):
             for file in files:
@@ -90,12 +87,10 @@ def main(args):
     for wordlist in wordlists:
         words = addWordlist(wordlist)
 
-        # print("Checking for " + wordlist + "...")
         for word in words:
             site = requests.get(url + word)
             result.write(str(site.status_code) + ' ' + url + word)
             result.write('\n')
-        # print("OK")
 
         words.close()
 
