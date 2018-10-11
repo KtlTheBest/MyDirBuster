@@ -111,8 +111,11 @@ def main(args):
 
         for word in words:
             word = clean(word)
-            site = requests.get(url + word)
-            print("Checking '/{}' folder".format(word))
+            print("Checking '/{}' folder...".format(word))
+            try:
+                site = requests.get(url + word)
+            except:
+                print("Unexpected error, skipping")
             writeResult(site, result)
 
         words.close()
