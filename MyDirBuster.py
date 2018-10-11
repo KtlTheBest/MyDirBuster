@@ -5,12 +5,27 @@ Created on Sat Oct  6 17:48:03 2018
 @author: marik
 """
 
+printAll = False
+
 import sys, os
 try:
     import requests, getopt, re
 except ImportError:
     print("This script requires 'requests', 're' and 'getopt' module! Please install it with pip!")
     raise Exception('exit')
+
+def writeCode(site, result):
+    result.write(str(site.status_code) + " " + site.url + "\n")
+
+def writeUsefulCode(site, result):
+    if site.status_code != 404:
+        writeCode(site, result)
+
+def writeResult(site, result):
+    if not printAll:
+        writeUsefulCode(site, result)
+    else:
+        writeCode(site, result)
 
 def addWordlist(filename):
     try:
@@ -20,9 +35,10 @@ def addWordlist(filename):
         return None
 
 
+def clean(str):
+    return str.rstrip()
+
 def checkUrl(url):
-    # Need to check if the url has the 'https://example.com' format
-    # Need to resolve the syntax errors
     url_template = re.compile(r'http(s)?://.+\.\w{2,4}')
     check = url_template.match(url)
     if not check:
@@ -36,10 +52,17 @@ def checkUrl(url):
 
     return site.url
 
+def finish():
+    raise Exception('exit')
+
 def main(args):
+    #Initialization section
+    outputFilename = "result.txt"
+    global printAll
+    #################
 
     try:
-        opt, vals = getopt.getopt(args, "hu:w:", ["help", "url=", "wordlist="])
+        opt, vals = getopt.getopt(args, "ahu:w:o:", ["all", "help", "url=", "wordlist=", "output="])
     except getopt.GetoptError:
         print("use -h for help")
         return
@@ -49,7 +72,7 @@ def main(args):
 
     for o, val in opt:
         if o in ("-h", "--help"):
-            print(sys.argv[0] + " -u <url> -w <wordlist>")
+            print(sys.argv[0] + " -u <url> -w <wordlist> -o <output-Filename>")
             return
         if o in ("-u", "--url"):
             url = val
@@ -57,22 +80,27 @@ def main(args):
         if o in ("-w", "--wordlist"):
             wordlists.append(val)
             wordlistOK = True
-
+        if o in ("-o", "--output"):
+            outputFilename = val
+        if o in ("-a", "--all"):
+            printAll = True
 
     if wordlistOK == True:
         if addWordlist(wordlists[0]) == None:
             print("Error opening the file! Check if the filename specified!")
-            raise Exception('exit')
+            finish()
     else:
-        # Need to iterate over files in wordlists directory
         wordlistDir = '.' + os.sep + 'wordlists'
         for subdir, dirs, files in os.walk(wordlistDir):
             for file in files:
                 if file.endswith(".txt"):
                     wordlists.append(os.path.join(subdir, file))
 
-
-    result = open("result.txt", "w")
+    try:
+        result = open(outputFilename, "w")
+    except:
+        print("Some unexpected error when trying to open file!")
+        finish()
 
     site = requests.get(url)
     result.write(str(site.status_code) + ' ' + url)
@@ -81,12 +109,14 @@ def main(args):
     for wordlist in wordlists:
         words = addWordlist(wordlist)
 
-        # print("Checking for " + wordlist + "...")
         for word in words:
-            site = requests.get(url + word)
-            result.write(str(site.status_code) + ' ' + url + word)
-            result.write('\n')
-        # print("OK")
+            word = clean(word)
+            print("Checking '/{}' folder...".format(word))
+            try:
+                site = requests.get(url + word)
+            except:
+                print("Unexpected error, skipping")
+            writeResult(site, result)
 
         words.close()
 
@@ -94,3 +124,4 @@ def main(args):
 
 if __name__ == "__main__":
     main(sys.argv[1:])
+    print("Done!")
