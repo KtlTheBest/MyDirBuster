@@ -5,6 +5,8 @@ Created on Sat Oct  6 17:48:03 2018
 @author: marik
 """
 
+printAll = False
+
 import sys, os
 try:
     import requests, getopt, re
@@ -12,7 +14,18 @@ except ImportError:
     print("This script requires 'requests', 're' and 'getopt' module! Please install it with pip!")
     raise Exception('exit')
 
-outputFilename = "result.txt"
+def writeCode(site, result):
+    result.write(str(site.status_code) + " " + site.url + "\n")
+
+def writeUsefulCode(site, result):
+    if site.status_code != 404:
+        writeCode(site, result)
+
+def writeResult(site, result):
+    if not printAll:
+        writeUsefulCode(site, result)
+    else:
+        writeCode(site, result)
 
 def addWordlist(filename):
     try:
@@ -21,6 +34,9 @@ def addWordlist(filename):
     except:
         return None
 
+
+def clean(str):
+    return str.rstrip()
 
 def checkUrl(url):
     url_template = re.compile(r'http(s)?://.+\.\w{2,4}')
@@ -40,9 +56,13 @@ def finish():
     raise Exception('exit')
 
 def main(args):
+    #Initialization section
+    outputFilename = "result.txt"
+    global printAll
+    #################
 
     try:
-        opt, vals = getopt.getopt(args, "hu:w:o:", ["help", "url=", "wordlist=", "output="])
+        opt, vals = getopt.getopt(args, "ahu:w:o:", ["all", "help", "url=", "wordlist=", "output="])
     except getopt.GetoptError:
         print("use -h for help")
         return
@@ -62,6 +82,8 @@ def main(args):
             wordlistOK = True
         if o in ("-o", "--output"):
             outputFilename = val
+        if o in ("-a", "--all"):
+            printAll = True
 
     if wordlistOK == True:
         if addWordlist(wordlists[0]) == None:
@@ -88,9 +110,10 @@ def main(args):
         words = addWordlist(wordlist)
 
         for word in words:
+            word = clean(word)
             site = requests.get(url + word)
-            result.write(str(site.status_code) + ' ' + url + word)
-            result.write('\n')
+            print("Checking '/{}' folder".format(word))
+            writeResult(site, result)
 
         words.close()
 
@@ -98,3 +121,4 @@ def main(args):
 
 if __name__ == "__main__":
     main(sys.argv[1:])
+    print("Done!")
