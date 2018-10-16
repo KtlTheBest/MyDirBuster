@@ -35,10 +35,10 @@ def addWordlist(filename):
         return None
 
 
-def clean(str):
+def cleanWord(str):
     return str.rstrip()
 
-def checkUrl(url):
+def cleanUrl(url):
     url_template = re.compile(r'http(s)?://.+\.\w{2,4}')
     check = url_template.match(url)
     if not check:
@@ -52,6 +52,11 @@ def checkUrl(url):
 
     return site.url
 
+def inputUrl():
+    url = raw_input("Input URL: ")
+    url = cleanUrl(url)
+    return url
+
 def finish():
     raise Exception('exit')
 
@@ -59,6 +64,7 @@ def main(args):
     #Initialization section
     outputFilename = "result.txt"
     global printAll
+    UrlInOption = False
     #################
 
     try:
@@ -75,8 +81,9 @@ def main(args):
             print(sys.argv[0] + " -u <url> -w <wordlist> -o <output-Filename>")
             return
         if o in ("-u", "--url"):
+            UrlInOption = True
             url = val
-            url = checkUrl(url)
+            url = cleanUrl(url)
         if o in ("-w", "--wordlist"):
             wordlists.append(val)
             wordlistOK = True
@@ -84,6 +91,9 @@ def main(args):
             outputFilename = val
         if o in ("-a", "--all"):
             printAll = True
+
+    if not UrlInOption:
+        url = inputUrl()
 
     if wordlistOK == True:
         if addWordlist(wordlists[0]) == None:
@@ -110,7 +120,7 @@ def main(args):
         words = addWordlist(wordlist)
 
         for word in words:
-            word = clean(word)
+            word = cleanWord(word)
             print("Checking '/{}' folder...".format(word))
             try:
                 site = requests.get(url + word)
