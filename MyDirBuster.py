@@ -124,6 +124,9 @@ def main(args):
             print("Checking '/{}' folder...".format(word))
             try:
                 site = requests.get(url + word)
+            except KeyboardInterrupt:
+                print("Finishing program")
+                return
             except:
                 print("Unexpected error, skipping")
             writeResult(site, result)
