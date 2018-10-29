@@ -1,31 +1,32 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Oct  6 17:48:03 2018
-
-@author: marik
-"""
 
 printAll = False
 
-import sys, os
+import sys, os, Queue, threading
 try:
     import requests, getopt, re
 except ImportError:
     print("This script requires 'requests', 're' and 'getopt' module! Please install it with pip!")
     raise Exception('exit')
 
+
+wordQueue = Queue.Queue()
+finished = threading.Event()
+
 def writeCode(site, result):
     result.write(str(site.status_code) + " " + site.url + "\n")
+
 
 def writeUsefulCode(site, result):
     if site.status_code != 404:
         writeCode(site, result)
+
 
 def writeResult(site, result):
     if not printAll:
         writeUsefulCode(site, result)
     else:
         writeCode(site, result)
+
 
 def addWordlist(filename):
     try:
@@ -37,6 +38,7 @@ def addWordlist(filename):
 
 def cleanWord(str):
     return str.rstrip()
+
 
 def cleanUrl(url):
     url_template = re.compile(r'http(s)?://.+\.\w{2,4}')
@@ -52,18 +54,38 @@ def cleanUrl(url):
 
     return site.url
 
+
 def inputUrl():
     url = raw_input("Input URL: ")
     url = cleanUrl(url)
     return url
 
-def finish():
-    raise Exception('exit')
+
+def checkUrl(url, result):
+    global wordQueue
+
+    while True:
+        try:
+            word = wordQueue.get(False)
+        except QueueEmpty:
+            finished.set()
+            return
+
+        print("Checking {}/{}...".format(url, word))
+        try:
+            site = requests.get(url + word)
+        except KeyboardInterrupt:
+            print("Skipping...")
+            pass
+
+        writeResult(site, result)
+
 
 def main(args):
     #Initialization section
     outputFilename = "result.txt"
     global printAll
+    global finished
     UrlInOption = False
     #################
 
@@ -109,8 +131,8 @@ def main(args):
     try:
         result = open(outputFilename, "w")
     except:
-        print("Some unexpected error when trying to open file!")
-        finish()
+        print("Some unexpected error when trying to open {}!".format(file))
+
 
     site = requests.get(url)
     result.write(str(site.status_code) + ' ' + url)
@@ -121,17 +143,15 @@ def main(args):
 
         for word in words:
             word = cleanWord(word)
-            print("Checking '/{}' folder...".format(word))
-            try:
-                site = requests.get(url + word)
-            except KeyboardInterrupt:
-                print("Finishing program")
-                return
-            except:
-                print("Unexpected error, skipping")
-            writeResult(site, result)
+            wordQueue.put(word)
 
-        words.close()
+        if finished.isSet():
+            words.close()
+
+
+    for i in range(10):
+        t = threading.Thread(target = checkUrl, args = (url, result))
+        t.start()
 
     result.close()
 
