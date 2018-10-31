@@ -67,7 +67,7 @@ def checkUrl(url, result):
     while True:
         try:
             word = wordQueue.get(False)
-        except QueueEmpty:
+        except Queue.Empty:
             finished.set()
             return
 
