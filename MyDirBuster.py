@@ -71,7 +71,7 @@ def checkUrl(url, result):
             finished.set()
             return
 
-        print("Checking {}/{}...".format(url, word))
+        print("Checking {}{}...".format(url, word))
         try:
             site = requests.get(url + word)
         except KeyboardInterrupt:
