@@ -1,6 +1,3 @@
-
-printAll = False
-
 import sys, os, Queue, threading
 try:
     import requests, getopt, re
@@ -9,11 +6,20 @@ except ImportError:
     raise Exception('exit')
 
 
+outputFilename = "result.txt"
+UrlInOption = False
+printAll = False
+fastCheck = True
+extended = False
 wordQueue = Queue.Queue()
 finished = threading.Event()
+lock = threading.Semaphore()
 
 def writeCode(site, result):
-    result.write(str(site.status_code) + " " + site.url + "\n")
+    try:
+        result.write(str(site.status_code) + " " + site.url + "\n")
+    except:
+        pass
 
 
 def writeUsefulCode(site, result):
@@ -61,43 +67,7 @@ def inputUrl():
     return url
 
 
-def checkUrl(url, result):
-    global wordQueue
-
-    while True:
-        try:
-            word = wordQueue.get(False)
-        except Queue.Empty:
-            finished.set()
-            return
-
-        print("Checking {}{}...".format(url, word))
-        try:
-            site = requests.get(url + word)
-        except KeyboardInterrupt:
-            print("Skipping...")
-            pass
-
-        writeResult(site, result)
-
-
-def main(args):
-    #Initialization section
-    outputFilename = "result.txt"
-    global printAll
-    global finished
-    UrlInOption = False
-    #################
-
-    try:
-        opt, vals = getopt.getopt(args, "ahu:w:o:", ["all", "help", "url=", "wordlist=", "output="])
-    except getopt.GetoptError:
-        print("use -h for help")
-        return
-
-    wordlists = []
-    wordlistOK = False
-
+def resolveArgs(opt):
     for o, val in opt:
         if o in ("-h", "--help"):
             print(sys.argv[0] + " -u <url> -w <wordlist> -o <output-Filename>")
@@ -113,6 +83,69 @@ def main(args):
             outputFilename = val
         if o in ("-a", "--all"):
             printAll = True
+        if o in ("-f", "--full"):
+            fastCheck = False
+        if o in ("-e", "--extended"):
+            extended = True
+
+def checkUrl(url, result):
+    global wordQueue
+
+    while True:
+        try:
+            word = wordQueue.get(False)
+        except Queue.Empty:
+            finished.set()
+            return
+
+        lock.acquire()
+        print("Checking {}{}...".format(url, word))
+        lock.release()
+        try:
+            site = requests.get(url + word)
+        except KeyboardInterrupt:
+            lock.acquire()
+            print("Skipping...")
+            lock.release()
+            return
+        except requests.ConnectionError():
+            return
+
+        writeResult(site, result)
+
+
+def getWordlists(fastCheck):
+    wordlistDir = '.' + os.sep + 'wordlists'
+    wordlists = []
+    if fastCheck == True:
+        wordlists.append(wordlistDir + os.sep + "common.txt")
+    else:
+        for subdir, dirs, files in os.walk(wordlistDir):
+            for file in files:
+                if file.endswith(".txt"):
+                    wordlists.append(os.path.join(subdir, file))
+    return wordlists
+
+def addExtensions(word):
+    ext_list = [
+        ".html",
+        ".html"
+        ".php",
+        ".aspx",
+    ]
+    for i in ext_list:
+        wordQueue.put(word + i)
+
+def main(args):
+    try:
+        opt, vals = getopt.getopt(args, "ahu:w:o:fe", ["all", "help", "url=", "wordlist=", "output=", "full", "extended"])
+    except getopt.GetoptError:
+        print("use -h for help")
+        return
+
+    wordlistOK = False
+
+    resolveArgs(opt)
 
     if not UrlInOption:
         url = inputUrl()
@@ -122,11 +155,7 @@ def main(args):
             print("Error opening the file! Check if the filename specified!")
             finish()
     else:
-        wordlistDir = '.' + os.sep + 'wordlists'
-        for subdir, dirs, files in os.walk(wordlistDir):
-            for file in files:
-                if file.endswith(".txt"):
-                    wordlists.append(os.path.join(subdir, file))
+        wordlists = getWordlists(fastCheck)
 
     try:
         result = open(outputFilename, "w")
@@ -140,20 +169,20 @@ def main(args):
 
     for wordlist in wordlists:
         words = addWordlist(wordlist)
+        print("DEBUG: " + wordlist)
 
         for word in words:
             word = cleanWord(word)
             wordQueue.put(word)
+            if extended == True:
+                addExtensions(word, wordQueue)
+            for i in range(10):
+                t = threading.Thread(target = checkUrl, args = (url, result))
+                t.start()
 
         if finished.isSet():
             words.close()
-
-
-    for i in range(10):
-        t = threading.Thread(target = checkUrl, args = (url, result))
-        t.start()
-
-    result.close()
+            result.close()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
